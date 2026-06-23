@@ -11,103 +11,107 @@ import re
 
 # ---------------- CONFIG ----------------
 URL = "https://rcinvestigacion.ms.gba.gov.ar/surveys/?s=LXXRMH3EDDH9XKAT"
-ARCHIVO_EXCEL = "plantilla_encuesta_v2.xlsx"
+EXCEL_FILE = "plantilla_encuesta_v2.xlsx"
 
-# ---------------- FUNCIONES OPTIMIZADAS ----------------
+# ---------------- OPTIMIZED FUNCTIONS ----------------
 
-def esperar_e_interactuar(driver, por_que, selector, tiempo=10):
-    """Espera activamente a que un elemento sea completamente interactuable"""
-    return WebDriverWait(driver, tiempo).until(
-        EC.element_to_be_clickable((por_que, selector))
+def wait_and_interact(driver, by_selector, selector_value, timeout=10):
+    """Actively waits for an element to be fully clickable."""
+    return WebDriverWait(driver, timeout).until(
+        EC.element_to_be_clickable((by_selector, selector_value))
     )
 
-def escribir_input_fijo(driver, name_atributo, valor):
-    """Escribe de forma segura en los campos que tienen un atributo NAME fijo"""
+def write_fixed_input(driver, name_attribute, value):
+    """Safely writes to inputs that have a fixed NAME attribute."""
     try:
-        if pd.isna(valor) or str(valor).strip() == "":
+        if pd.isna(value) or str(value).strip() == "":
             return
-        campo = esperar_e_interactuar(driver, By.NAME, name_atributo)
-        campo.clear()
-        campo.send_keys(str(valor))
+        field = wait_and_interact(driver, By.NAME, name_attribute)
+        field.clear()
+        field.send_keys(str(value))
     except Exception as e:
-        print(f"[-] Error al escribir en el campo fijo (NAME='{name_atributo}'): {e}")
+        print(f"[-] Error writing to fixed field (NAME='{name_attribute}'): {e}")
 
-def escribir_fecha_redcap(driver, name_atributo, valor):
-    """Convierte cualquier formato de fecha de Excel/Pandas al formato DD/MM/YYYY de REDCap"""
+def write_redcap_date(driver, name_attribute, value):
+    """Converts any Excel/Pandas date format to REDCap's DD/MM/YYYY format."""
     try:
-        if pd.isna(valor) or str(valor).strip() == "":
+        if pd.isna(value) or str(value).strip() == "":
             return
             
-        if isinstance(valor, pd.Timestamp) or hasattr(valor, 'strftime'):
-            fecha_formateada = valor.strftime("%d/%m/%Y")
+        if isinstance(value, pd.Timestamp) or hasattr(value, 'strftime'):
+            formatted_date = value.strftime("%d/%m/%Y")
         else:
-            val_str = str(valor).strip()
+            val_str = str(value).strip()
             if re.match(r'\d{4}-\d{2}-\d{2}', val_str):
-                partes = val_str.split('-')
-                fecha_formateada = f"{partes[2]}/{partes[1]}/{partes[0]}"
+                parts = val_str.split('-')
+                formatted_date = f"{parts[2]}/{parts[1]}/{parts[0]}"
             elif re.match(r'\d{2}-\d{2}-\d{4}', val_str):
-                fecha_formateada = val_str.replace('-', '/')
+                formatted_date = val_str.replace('-', '/')
             else:
-                fecha_formateada = val_str
+                formatted_date = val_str
 
-        print(f"[*] Escribiendo fecha adaptada: {fecha_formateada} en '{name_atributo}'")
-        campo = esperar_e_interactuar(driver, By.NAME, name_atributo)
-        campo.clear()
-        campo.send_keys(fecha_formateada)
-        campo.send_keys(Keys.TAB) 
+        print(f"[*] Typing adapted date: {formatted_date} into '{name_attribute}'")
+        field = wait_and_interact(driver, By.NAME, name_attribute)
+        field.clear()
+        field.send_keys(formatted_date)
+        field.send_keys(Keys.TAB) 
     except Exception as e:
-        print(f"[-] Error al escribir la fecha en (NAME='{name_atributo}'): {e}")
+        print(f"[-] Error writing date to (NAME='{name_attribute}'): {e}")
 
-def seleccionar_dropdown_estatico(driver, name_atributo, valor):
+def select_static_dropdown(driver, name_attribute, value):
+    """Handles standard dropdown menus by visible text or value matching."""
     try:
-        if pd.isna(valor) or str(valor).strip() == "":
+        if pd.isna(value) or str(value).strip() == "":
             return
             
-        valor_limpio = str(valor).strip()
-        print(f"[*] Intentando cargar '{valor_limpio}' en el campo '{name_atributo}'...")
+        clean_value = str(value).strip()
+        print(f"[*] Attempting to select '{clean_value}' in field '{name_attribute}'...")
 
         select_elem = WebDriverWait(driver, 5).until(
-            EC.presence_of_element_located((By.NAME, name_atributo))
+            EC.presence_of_element_located((By.NAME, name_attribute))
         )
         select = Select(select_elem)
         
-        valor_buscado_up = valor_limpio.upper()
-        for opcion in select.options:
-            if valor_buscado_up in opcion.text.upper():
+        target_value_upper = clean_value.upper()
+        for option in select.options:
+            if target_value_upper in option.text.upper():
                 try:
-                    select.select_by_visible_text(opcion.text)
-                    print(f"[+] ¡Éxito! Se seleccionó '{opcion.text}' en '{name_atributo}' por texto.")
+                    select.select_by_visible_text(option.text)
+                    print(f"[+] Success! Selected '{option.text}' in '{name_attribute}' by text.")
                     return
                 except:
                     pass
 
         try:
-            select.select_by_value(valor_limpio)
-            print(f"[+] ¡Éxito! Se seleccionó el ID '{valor_limpio}' en '{name_atributo}' por valor numérico.")
+            select.select_by_value(clean_value)
+            print(f"[+] Success! Selected ID '{clean_value}' in '{name_attribute}' by numeric value.")
             return
         except:
             pass
 
-        print(f"[-] No se pudo seleccionar '{valor_limpio}' en el select NAME='{name_atributo}'")
+        print(f"[-] Could not find or select '{clean_value}' in dropdown NAME='{name_attribute}'")
     except Exception as e:
-        print(f"[-] Error al interactuar con el select NAME='{name_atributo}': {e}")
+        print(f"[-] Error interacting with dropdown NAME='{name_attribute}': {e}")
 
-def seleccionar_radio_redcap(driver, name_base, valor):
+def select_redcap_radio(driver, base_name, value):
+    """Handles REDCap radio buttons by constructing the expected element name suffix."""
     try:
-        if pd.isna(valor) or str(valor).strip() == "":
+        if pd.isna(value) or str(value).strip() == "":
             return
             
-        val_str = str(valor).strip().upper()
-        if val_str in ["SI", "TRUE"]: valor_limpio = "1"
-        elif val_str in ["NO", "FALSE"]: valor_limpio = "0"
+        val_str = str(value).strip().upper()
+        if val_str in ["SI", "TRUE"]: 
+            clean_value = "1"
+        elif val_str in ["NO", "FALSE"]: 
+            clean_value = "0"
         else:
             try:
-                valor_limpio = str(int(float(valor))).strip()
+                clean_value = str(int(float(value))).strip()
             except ValueError:
-                valor_limpio = val_str
+                clean_value = val_str
 
-        name_radio = f"{name_base}___radio"
-        xpath = f"//input[@name='{name_radio}' and @value='{valor_limpio}']"
+        radio_name = f"{base_name}___radio"
+        xpath = f"//input[@name='{radio_name}' and @value='{clean_value}']"
         
         radio_elem = WebDriverWait(driver, 5).until(
             EC.presence_of_element_located((By.XPATH, xpath))
@@ -115,16 +119,17 @@ def seleccionar_radio_redcap(driver, name_base, valor):
         driver.execute_script("arguments[0].click();", radio_elem)
         time.sleep(0.1)
     except Exception as e:
-        print(f"[-] Error al marcar el radio para '{name_base}': {e}")     
+        print(f"[-] Error selecting radio button for '{base_name}': {e}")     
 
-def seleccionar_checkbox_redcap(driver, name_base, codigo_casilla, valor):
+def select_redcap_checkbox(driver, base_name, checkbox_code, value):
+    """Handles REDCap checkboxes via custom attributes."""
     try:
-        if pd.isna(valor) or str(valor).strip().upper() not in ["SI", "1", "TRUE"]:
+        if pd.isna(value) or str(value).strip().upper() not in ["SI", "1", "TRUE"]:
             return
             
-        name_checkbox = f"__chkn__{name_base}"
-        str_code = str(codigo_casilla).strip()
-        xpath = f"//input[@type='checkbox' and @name='{name_checkbox}' and @code='{str_code}']"
+        checkbox_name = f"__chkn__{base_name}"
+        str_code = str(checkbox_code).strip()
+        xpath = f"//input[@type='checkbox' and @name='{checkbox_name}' and @code='{str_code}']"
         
         checkbox_elem = WebDriverWait(driver, 5).until(
             EC.presence_of_element_located((By.XPATH, xpath))
@@ -133,11 +138,11 @@ def seleccionar_checkbox_redcap(driver, name_base, codigo_casilla, valor):
             driver.execute_script("arguments[0].click();", checkbox_elem)
             time.sleep(0.1)
     except Exception as e:
-        print(f"[-] Error al tildar el checkbox '{name_base}' con código '{codigo_casilla}': {e}")          
+        print(f"[-] Error checking box '{base_name}' with code '{checkbox_code}': {e}")          
 
-# ---------------- SCRIPT PRINCIPAL ----------------
+# ---------------- MAIN SCRIPT ----------------
 
-df = pd.read_excel(ARCHIVO_EXCEL)
+df = pd.read_excel(EXCEL_FILE)
 
 chrome_options = Options()
 chrome_options.add_experimental_option("detach", True)
@@ -147,134 +152,134 @@ driver = webdriver.Chrome(options=chrome_options)
 
 for i, row in df.iterrows():
     print(f"\n=========================================")
-    print(f" CARGANDO REGISTRO {i+1} DE {len(df)}")
+    print(f" LOADING RECORD {i+1} OF {len(df)}")
     print(f"=========================================")
     driver.get(URL)
     time.sleep(2)  
     
-    # [CRONÓMETRO] Tiempo inicial
-    tiempo_inicio = time.time() 
+    # [STOPWATCH] Initial time tracking
+    start_time = time.time() 
     
-    # -------- FIJOS --------
-    escribir_input_fijo(driver, "nom_1", row["efector"])
-    escribir_input_fijo(driver, "cod_1", row["codigo"])
+    # -------- FIXED FIELDS --------
+    write_fixed_input(driver, "nom_1", row["efector"])
+    write_fixed_input(driver, "cod_1", row["codigo"])
 
-    # -------- MUNICIPIO --------
-    seleccionar_dropdown_estatico(driver, "municipio", row["municipio"])
+    # -------- MUNICIPALITY --------
+    select_static_dropdown(driver, "municipio", row["municipio"])
     time.sleep(1) 
     
-    escribir_fecha_redcap(driver, "fecha_1", row["fecha"])
+    write_redcap_date(driver, "fecha_1", row["fecha"])
 
-    # -------- TURNO ZONA --------
-    seleccionar_radio_redcap(driver, "turno", row["turno_2"])
-    seleccionar_radio_redcap(driver, "zona", row["zona_2"])
-    seleccionar_radio_redcap(driver, "po", row["pueblos_orig_2"])
+    # -------- SHIFT & ZONE --------
+    select_redcap_radio(driver, "turno", row["turno_2"])
+    select_redcap_radio(driver, "zona", row["zona_2"])
+    select_redcap_radio(driver, "po", row["pueblos_orig_2"])
 
-    # -------- DATOS PERSONALES --------
-    escribir_input_fijo(driver, "apellido", row["apellido"])
-    escribir_input_fijo(driver, "nombre_s", row["nombre"])
-    escribir_input_fijo(driver, "dni", row["dni"])
-    escribir_fecha_redcap(driver, "fecha_de_nacimiento", row["fecha_nacimiento"])
-    escribir_input_fijo(driver, "edad", row["edad"])
+    # -------- PERSONAL DATA --------
+    write_fixed_input(driver, "apellido", row["apellido"])
+    write_fixed_input(driver, "nombre_s", row["nombre"])
+    write_fixed_input(driver, "dni", row["dni"])
+    write_redcap_date(driver, "fecha_de_nacimiento", row["fecha_nacimiento"])
+    write_fixed_input(driver, "edad", row["edad"])
     
-    seleccionar_dropdown_estatico(driver, "g_nero", row["genero"])
-    seleccionar_dropdown_estatico(driver, "a_o_escolar_en_curso", row["anio_curso"])    
-    escribir_input_fijo(driver, "direcci_n_calle_y_n_mero", row["direccion"])
-    escribir_input_fijo(driver, "localidad", row["localidad"])    
-    seleccionar_dropdown_estatico(driver, "cobertura_m_dica", row["cobertura_medica"])
-    seleccionar_dropdown_estatico(driver, "auh", row["auh"])
-    escribir_input_fijo(driver, "tel_fono_de_contacto", row["telefono"])
+    select_static_dropdown(driver, "g_nero", row["genero"])
+    select_static_dropdown(driver, "a_o_escolar_en_curso", row["anio_curso"])    
+    write_fixed_input(driver, "direcci_n_calle_y_n_mero", row["direccion"])
+    write_fixed_input(driver, "localidad", row["localidad"])    
+    select_static_dropdown(driver, "cobertura_m_dica", row["cobertura_medica"])
+    select_static_dropdown(driver, "auh", row["auh"])
+    write_fixed_input(driver, "tel_fono_de_contacto", row["telefono"])
 
-    # -------- SALUD --------
-    seleccionar_dropdown_estatico(driver, "control_de_salud_en_el_lti", row["control_salud"])
+    # -------- HEALTH STATUS --------
+    select_static_dropdown(driver, "control_de_salud_en_el_lti", row["control_salud"])
 
-    # -------- ANTECEDENTES --------
-    seleccionar_radio_redcap(driver, "broncoespasmos_a_repetici2", row["broncoespasmo_2"])
-    seleccionar_radio_redcap(driver, "cadiopat_as_cong_nitas_o_d2", row["cardiopatias_2"])
-    seleccionar_radio_redcap(driver, "convulsiones2", row["convulsiones_2"])
-    seleccionar_radio_redcap(driver, "diabetes2", row["diabetes_2"])
-    seleccionar_radio_redcap(driver, "usa_anteojos_o_tiene_indic", row["anteojos_2"])
-    seleccionar_radio_redcap(driver, "muerte_s_bita_o_antes_de_l", row["muerte_subita_familiar_2"])
-    seleccionar_radio_redcap(driver, "tuvo_internaciones_y_o_cir", row["internaciones_2"])
+    # -------- MEDICAL HISTORY --------
+    select_redcap_radio(driver, "broncoespasmos_a_repetici2", row["broncoespasmo_2"])
+    select_redcap_radio(driver, "cadiopat_as_cong_nitas_o_d2", row["cardiopatias_2"])
+    select_redcap_radio(driver, "convulsiones2", row["convulsiones_2"])
+    select_redcap_radio(driver, "diabetes2", row["diabetes_2"])
+    select_redcap_radio(driver, "usa_anteojos_o_tiene_indic", row["anteojos_2"])
+    select_redcap_radio(driver, "muerte_s_bita_o_antes_de_l", row["muerte_subita_familiar_2"])
+    select_redcap_radio(driver, "tuvo_internaciones_y_o_cir", row["internaciones_2"])
 
-    # -------- MEDICACION --------
-    seleccionar_dropdown_estatico(driver, "toma_medicaci_n_actualment", row["medicacion"])
-    escribir_input_fijo(driver, "cuales", row["cuales"])
-    escribir_input_fijo(driver, "existen", row["otros_antecedentes"])
+    # -------- MEDICATION --------
+    select_static_dropdown(driver, "toma_medicaci_n_actualment", row["medicacion"])
+    write_fixed_input(driver, "cuales", row["cuales"])
+    write_fixed_input(driver, "existen", row["otros_antecedentes"])
 
-    # -------- EXAMEN CLÍNICO --------
-    seleccionar_dropdown_estatico(driver, "cardiovascular1", row["cardiovascular"])
-    escribir_input_fijo(driver, "observac_card", row["orb_card"])
-    seleccionar_dropdown_estatico(driver, "respiratorio2", row["respiratorio"])
-    escribir_input_fijo(driver, "observac_resp_2", row["orb_resp"])
-    seleccionar_dropdown_estatico(driver, "osteoarticular3", row["osteoarticular"])
-    escribir_input_fijo(driver, "observac_oste_4", row["orb_osteo"])
-    seleccionar_dropdown_estatico(driver, "parttes_blandas4", row["piel"])
-    escribir_input_fijo(driver, "observac_pb_5", row["orb_piel"])
-    seleccionar_dropdown_estatico(driver, "abdominal4", row["abdomen"])
-    escribir_input_fijo(driver, "observac_abd_3", row["orb_abdo"])
-    seleccionar_dropdown_estatico(driver, "del_habla5", row["habla"])
-    escribir_input_fijo(driver, "observac_habla_4", row["orb_habla"])
-    escribir_input_fijo(driver, "descripci_n_de_hallazgos_p", row["otras_alteraciones"])
-    escribir_input_fijo(driver, "peso_kg", row["peso"])
-    escribir_input_fijo(driver, "talla_cm", row["talla"])
+    # -------- CLINICAL EXAMINATION --------
+    select_static_dropdown(driver, "cardiovascular1", row["cardiovascular"])
+    write_fixed_input(driver, "observac_card", row["orb_card"])
+    select_static_dropdown(driver, "respiratorio2", row["respiratorio"])
+    write_fixed_input(driver, "observac_resp_2", row["orb_resp"])
+    select_static_dropdown(driver, "osteoarticular3", row["osteoarticular"])
+    write_fixed_input(driver, "observac_oste_4", row["orb_osteo"])
+    select_static_dropdown(driver, "parttes_blandas4", row["piel"])
+    write_fixed_input(driver, "observac_pb_5", row["orb_piel"])
+    select_static_dropdown(driver, "abdominal4", row["abdomen"])
+    write_fixed_input(driver, "observac_abd_3", row["orb_abdo"])
+    select_static_dropdown(driver, "del_habla5", row["habla"])
+    write_fixed_input(driver, "observac_habla_4", row["orb_habla"])
+    write_fixed_input(driver, "descripci_n_de_hallazgos_p", row["otras_alteraciones"])
+    write_fixed_input(driver, "peso_kg", row["peso"])
+    write_fixed_input(driver, "talla_cm", row["talla"])
 
-    # -------- VACUNACION --------
-    seleccionar_radio_redcap(driver, "esquema_completo_de_vacuna", row["esquema_vacunas_2"])
-    seleccionar_radio_redcap(driver, "decide_vacunarse", row["decide_vacunarse_2"])
-    seleccionar_dropdown_estatico(driver, "vacunas_que_se_apliacan_tr", row["triple_viral"])
-    seleccionar_dropdown_estatico(driver, "vacunas_que_se_apliacan_tr_2", row["triple_bacteriana"])
-    seleccionar_dropdown_estatico(driver, "vacunas_que_se_apliacan_tr_3", row["ipv"])
-    seleccionar_dropdown_estatico(driver, "vacunas_que_se_apliacan_tr_4", row["varicela"])
-    seleccionar_dropdown_estatico(driver, "vacunas_que_se_apliacan_tr_5", row["covid"])
-    escribir_input_fijo(driver, "otras_vacunas", row["otras_vacunas"])
+    # -------- VACCINATION --------
+    select_redcap_radio(driver, "esquema_completo_de_vacuna", row["esquema_vacunas_2"])
+    select_redcap_radio(driver, "decide_vacunarse", row["decide_vacunarse_2"])
+    select_static_dropdown(driver, "vacunas_que_se_apliacan_tr", row["triple_viral"])
+    select_static_dropdown(driver, "vacunas_que_se_apliacan_tr_2", row["triple_bacteriana"])
+    select_static_dropdown(driver, "vacunas_que_se_apliacan_tr_3", row["ipv"])
+    select_static_dropdown(driver, "vacunas_que_se_apliacan_tr_4", row["varicela"])
+    select_static_dropdown(driver, "vacunas_que_se_apliacan_tr_5", row["covid"])
+    write_fixed_input(driver, "otras_vacunas", row["otras_vacunas"])
     
-    # -------- OFTALMO --------
-    seleccionar_radio_redcap(driver, "agudeza_visual_ojo_derecho", row["agudeza_od"])
-    seleccionar_radio_redcap(driver, "agudeza_visual_ojo_derecho_2", row["agudeza_oi"])
-    seleccionar_radio_redcap(driver, "alteraciones_del_ojo_exter", row["ojo_externo_2"])
-    escribir_input_fijo(driver, "cuales2", row["ojo_externo_cuales"])
-    seleccionar_checkbox_redcap(driver, "oftalmolog_a_indicar_todas", 1, row["fondo_ojo"])
-    seleccionar_checkbox_redcap(driver, "oftalmolog_a_indicar_todas", 2, row["programa_vpa"])
+    # -------- OPHTHALMOLOGY --------
+    select_redcap_radio(driver, "agudeza_visual_ojo_derecho", row["agudeza_od"])
+    select_redcap_radio(driver, "agudeza_visual_ojo_derecho_2", row["agudeza_oi"])
+    select_redcap_radio(driver, "alteraciones_del_ojo_exter", row["ojo_externo_2"])
+    write_fixed_input(driver, "cuales2", row["ojo_externo_cuales"])
+    select_redcap_checkbox(driver, "oftalmolog_a_indicar_todas", 1, row["fondo_ojo"])
+    select_redcap_checkbox(driver, "oftalmolog_a_indicar_todas", 2, row["programa_vpa"])
     
-    # -------- ODONTO --------
-    seleccionar_radio_redcap(driver, "acciones_promopreventivas", row["acciones_promoprev_2"])
-    seleccionar_radio_redcap(driver, "aplicacion_de_fl_or", row["fluor_2"])
-    seleccionar_radio_redcap(driver, "alteraciones_del_crecimien", row["maxilares_2"])
-    escribir_input_fijo(driver, "oltras_alteraciones_odont", row["otras_odonto"]) # <- [CORREGIDO NOMBRE]
+    # -------- DENTISTRY --------
+    select_redcap_radio(driver, "acciones_promopreventivas", row["acciones_promoprev_2"])
+    select_redcap_radio(driver, "aplicacion_de_fl_or", row["fluor_2"])
+    select_redcap_radio(driver, "alteraciones_del_crecimien", row["maxilares_2"])
+    write_fixed_input(driver, "oltras_alteraciones_odont", row["otras_odonto"])
     
-    # -------- FINAL --------
-    escribir_input_fijo(driver, "observaciones_indicar_toda", row["observaciones"])
+    # -------- FINAL DETAILS --------
+    write_fixed_input(driver, "observaciones_indicar_toda", row["observaciones"])
     
-    # [CRONÓMETRO] Tiempo de finalización de tipeo
-    tiempo_final = time.time()
-    tiempo_total = tiempo_final - tiempo_inicio
+    # [STOPWATCH] Tallying time spent filling out the form
+    end_time = time.time()
+    total_time = end_time - start_time
     
     # =========================================================================
-    # MODO ASISTENTE: ESPERA DE ENVÍO MANUAL
+    # ASSISTANT MODE: MANUAL SUBMISSION PAUSE
     # =========================================================================
-    url_actual = driver.current_url
+    current_url = driver.current_url
     
-    # Ejecutamos el scroll al principio antes de los avisos para máxima fluidez
+    # Smooth scroll up a bit before printing terminal alerts
     driver.execute_script("window.scrollTo(0, 300);") 
     
-    print("\n[!] Formulario completado automáticamente.")
-    print(f"[⏱️] El script tardó {tiempo_total:.2f} segundos en llenar los datos.")
-    print("[>] Por favor, elegí la escuela a mano y hacé clic en ENVIAR en el navegador...")
+    print("\n[!] Form field data populated automatically.")
+    print(f"[⏱️] The script took {total_time:.2f} seconds to autofill the form.")
+    print("[>] Please select the school manually on the browser and click SUBMIT...")
     
     try:
-        # Espera activa hasta que hagas clic en Enviar y la URL cambie
+        # Actively wait for user interaction to submit and the page URL to change
         WebDriverWait(driver, 300).until(
-            EC.url_changes(url_actual)
+            EC.url_changes(current_url)
         )
-        print(f"[+] ¡Perfecto! Detecté el envío manual del registro {i+1}.")
+        print(f"[+] Perfect! Detected manual submission for record {i+1}.")
         time.sleep(1) 
         
     except Exception:
-        print("[-] Pasó demasiado tiempo sin detectar el envío.")
-        input(">>> Si ya lo enviaste, presioná ENTER acá para continuar con la siguiente fila...")
+        print("[-] Timeout: Took too long to detect form submission.")
+        input(">>> If you already submitted it, press ENTER here to move to the next row...")
 
-# --- ANCLA DE SEGURIDAD ---
-print("\n[+] El bucle de carga terminó exitosamente.")
-input(">>> Presioná ENTER en esta consola para cerrar la ventana de Chrome definitivamente...")
+# --- SAFETY ANCHOR ---
+print("\n[+] Data loop execution completed successfully.")
+input(">>> Press ENTER in this console window to close the Chrome browser instance permanently...")
 driver.quit()
