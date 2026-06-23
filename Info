@@ -1,0 +1,31 @@
+<td class="data col-5 greenhighlight">
+<span data-kind="field-value">
+<span>
+<select role="listbox" aria-required="true"
+aria-labelledby="label-municipio" class="x-form-text x-form-field   " name="municipio" onchange="clean_datetime(this,'');
+doBranching('municipio');" tabindex="0">
+
+<option data-mlm-field="municipio" data-mlm-type="enum" data-mlm-value="42" value="42">Florencio Varela</option><option
+data-mlm-field="municipio" data-mlm-type="enum" data-mlm-value="134" value="134">Villarino</option>
+
+<option data-mlm-field="municipio"
+data-mlm-type="enum" data-mlm-value="135" value="135">Zárate</option></select></span></span><div id="municipio_MDLabel" class="MDLabel"
+style="display:none" code="" label=""></div></td>
+
+# SCHOOL SELECTION 
+<tr id="escuela_43-tr" sq_id="escuela_43" req="1" style="display: table-row;">
+  <td class="labelrc questionnum col-1 greenhighlight" valign="top"></td>
+  <td class="labelrc col-6 greenhighlight">...</td>
+  <td class="data col-5 greenhighlight">
+    <span data-kind="field-value">
+      <span>
+          <select role="listbox" aria-required="true" aria-labelledby="label-escuela_43" class="x-form-text x-form-field
+          " name="escuela_43" tabindex="0">
+          <option value=""></option>
+            <option data-mlm-field="escuela_43" data-mlm-type="enum" data-mlm-value="1" value="1">ESCUELA DE EDUCACIÓN
+            PRIMARIA Nº1 "GENERAL JOSÉ DE SAN MARTIN"</option>...</select>
+      </span>
+    </span>
+    <div id="escuela_43_MDLabel" class="MDLabel" style="display:none" code="" label=""></div>
+  </td>
+</tr>
